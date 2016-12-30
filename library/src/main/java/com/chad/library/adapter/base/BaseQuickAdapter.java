@@ -47,7 +47,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 
-import static android.R.attr.orientation;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
@@ -60,42 +59,11 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     //load more
     private boolean mNextLoadEnable = false;
     private boolean mLoadMoreEnable = false;
-    private RequestLoadMoreListener mRequestLoadMoreListener;
     private boolean mLoading = false;
     private LoadMoreView mLoadMoreView = new SimpleLoadMoreView();
+    private RequestLoadMoreListener mRequestLoadMoreListener;
 
-    private boolean mFirstOnlyEnable = true;
-    private boolean mOpenAnimationEnable = false;
-    private Interpolator mInterpolator = new LinearInterpolator();
-    private int mDuration = 300;
-    private int mLastPosition = -1;
-    //@AnimationType
-    private BaseAnimation mCustomAnimation;
-    private BaseAnimation mSelectAnimation = new AlphaInAnimation();
-    //header footer
-    private LinearLayout mHeaderLayout;
-    private LinearLayout mFooterLayout;
-    //empty
-    private FrameLayout mEmptyLayout;
-    private boolean mIsUseEmpty = true;
-    private boolean mHeadAndEmptyEnable;
-    private boolean mFootAndEmptyEnable;
-
-    protected static final String TAG = BaseQuickAdapter.class.getSimpleName();
-    protected Context mContext;
-    protected int mLayoutResId;
-    protected LayoutInflater mLayoutInflater;
-    protected List<T> mData;
-    public static final int HEADER_VIEW = 0x00000111;
-    public static final int LOADING_VIEW = 0x00000222;
-    public static final int FOOTER_VIEW = 0x00000333;
-    public static final int EMPTY_VIEW = 0x00000555;
-
-    @IntDef({ALPHAIN, SCALEIN, SLIDEIN_BOTTOM, SLIDEIN_LEFT, SLIDEIN_RIGHT})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface AnimationType {
-    }
-
+    //Animation
     /**
      * Use with {@link #openLoadAnimation}
      */
@@ -116,6 +84,38 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
      * Use with {@link #openLoadAnimation}
      */
     public static final int SLIDEIN_RIGHT = 0x00000005;
+
+    @IntDef({ALPHAIN, SCALEIN, SLIDEIN_BOTTOM, SLIDEIN_LEFT, SLIDEIN_RIGHT})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface AnimationType {
+    }
+
+    private boolean mFirstOnlyEnable = true;
+    private boolean mOpenAnimationEnable = false;
+    private Interpolator mInterpolator = new LinearInterpolator();
+    private int mDuration = 300;
+    private int mLastPosition = -1;
+
+    private BaseAnimation mCustomAnimation;
+    private BaseAnimation mSelectAnimation = new AlphaInAnimation();
+    //header footer
+    private LinearLayout mHeaderLayout;
+    private LinearLayout mFooterLayout;
+    //empty
+    private FrameLayout mEmptyLayout;
+    private boolean mIsUseEmpty = true;
+    private boolean mHeadAndEmptyEnable;
+    private boolean mFootAndEmptyEnable;
+
+    protected static final String TAG = BaseQuickAdapter.class.getSimpleName();
+    protected Context mContext;
+    protected int mLayoutResId;
+    protected LayoutInflater mLayoutInflater;
+    protected List<T> mData;
+    public static final int HEADER_VIEW = 0x00000111;
+    public static final int LOADING_VIEW = 0x00000222;
+    public static final int FOOTER_VIEW = 0x00000333;
+    public static final int EMPTY_VIEW = 0x00000555;
 
     public void setOnLoadMoreListener(RequestLoadMoreListener requestLoadMoreListener) {
         this.mRequestLoadMoreListener = requestLoadMoreListener;
@@ -138,7 +138,7 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
      *
      * @return 0 or 1
      */
-    private int getLoadMoreViewCount() {
+    public int getLoadMoreViewCount() {
         if (mRequestLoadMoreListener == null || !mLoadMoreEnable) {
             return 0;
         }
@@ -271,29 +271,6 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     }
 
     /**
-     * remove the item associated with the specified position of adapter
-     *
-     * @param position
-     */
-    public void remove(int position) {
-        mData.remove(position);
-        notifyItemRemoved(position + getHeaderLayoutCount());
-
-    }
-
-    /**
-     * insert  a item associated with the specified position of adapter
-     *
-     * @param position
-     * @param item
-     */
-    public void add(int position, T item) {
-        mData.add(position, item);
-        notifyItemInserted(position + getHeaderLayoutCount());
-    }
-
-
-    /**
      * setting up a new instance to data;
      *
      * @param data
@@ -310,6 +287,18 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
         notifyDataSetChanged();
     }
 
+
+    /**
+     * insert  a item associated with the specified position of adapter
+     * @deprecated use {@link #addData(int, Object)} instead
+     * @param position
+     * @param item
+     */
+    @Deprecated
+    public void add(int position, T item) {
+        addData(position,item);
+    }
+
     /**
      * add one new data in to certain location
      *
@@ -318,6 +307,7 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     public void addData(int position, T data) {
         mData.add(position, data);
         notifyItemInserted(position + getHeaderLayoutCount());
+        compatibilityDataSizeChanged(1);
     }
 
     /**
@@ -326,6 +316,26 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     public void addData(T data) {
         mData.add(data);
         notifyItemInserted(mData.size() + getHeaderLayoutCount());
+        compatibilityDataSizeChanged(1);
+    }
+
+    /**
+     * remove the item associated with the specified position of adapter
+     *
+     * @param position
+     */
+    public void remove(int position) {
+        mData.remove(position);
+        notifyItemRemoved(position + getHeaderLayoutCount());
+        compatibilityDataSizeChanged(0);
+    }
+
+    /**
+     * change data
+     */
+    public void setData(int index, T data) {
+        mData.set(index, data);
+        notifyItemChanged(index + getHeaderLayoutCount());
     }
 
     /**
@@ -336,6 +346,7 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     public void addData(int position, List<T> data) {
         mData.addAll(position, data);
         notifyItemRangeInserted(position + getHeaderLayoutCount(), data.size());
+        compatibilityDataSizeChanged(data.size());
     }
 
     /**
@@ -346,6 +357,19 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
     public void addData(List<T> newData) {
         this.mData.addAll(newData);
         notifyItemRangeInserted(mData.size() - newData.size() + getHeaderLayoutCount(), newData.size());
+        compatibilityDataSizeChanged(newData.size());
+    }
+
+    /**
+     * compatible getLoadMoreViewCount and getEmptyViewCount may change
+     *
+     * @param size Need compatible data size
+     */
+    private void compatibilityDataSizeChanged(int size) {
+        final int dataSize = mData == null ? 0 : mData.size();
+        if (dataSize == size) {
+            notifyDataSetChanged();
+        }
     }
 
     /**
@@ -709,6 +733,23 @@ public abstract class BaseQuickAdapter<T, K extends BaseViewHolder> extends Recy
             if (position != -1) {
                 notifyItemInserted(position);
             }
+        }
+    }
+
+    public void setHeaderView(View header) {
+        setHeaderView(header, 0, LinearLayout.VERTICAL);
+    }
+
+    public void setHeaderView(View header, int index) {
+        setHeaderView(header, index, LinearLayout.VERTICAL);
+    }
+
+    public void setHeaderView(View header, int index, int orientation) {
+        if (mHeaderLayout == null || mHeaderLayout.getChildCount() <= index) {
+            addHeaderView(header, index, orientation);
+        } else {
+            mHeaderLayout.removeViewAt(index);
+            mHeaderLayout.addView(header, index);
         }
     }
 
